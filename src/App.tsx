@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Routes, Route, Link, Outlet } from "react-router-dom";
 import { CoinsPage } from "./pages/Coins";
 import { HowItWorksPage } from "./pages/HowItWorks";
-import { UseNoditMcpPage } from "./pages/UseNoditMcp";
+import UseNoditMcp from "./pages/UseNoditMcp";
 import { GetFirstTransaction } from "./pages/GetFirstTransaction";
 
 function Layout() {
@@ -131,7 +131,7 @@ export function App() {
         <Route index element={<HomePage />} />
                 <Route path="coins" element={<CoinsPage />} />
         <Route path="howitworks" element={<HowItWorksPage />} />
-        <Route path="usenoditmcp" element={<UseNoditMcpPage />} />
+        <Route path="usenoditmcp" element={<UseNoditMcp />} />
         <Route path="getfirsttransaction" element={<GetFirstTransaction />} />
       </Route>
     </Routes>

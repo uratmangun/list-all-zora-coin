@@ -1,27 +1,56 @@
 import { useState, useEffect } from 'react';
-import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+
 import { useMcp } from 'use-mcp/react';
 
-function ToolCard({ tool, callTool }: { tool: any; callTool: (name: string, args: any) => Promise<any> }) {
-  const [args, setArgs] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<any>(null);
-  const properties = tool.inputSchema?.properties ?? {};
-  const propKeys = Object.keys(properties);
+const exampleParameters: Record<string, any> = {
+  call_nodit_api: {
+    "protocol": "base",
+    "network": "mainnet",
+    "operationId": "getTransactionsByAccount",
+    "requestBody": {
+      "accountAddress": "0x777777751622c0d3258f214F9DF38E35BF45baF3",
+      "limit": 1,
+      "includeLogs": true,
+      "includeDecoded": true
+    }
+  },
+  get_nodit_api_spec: {
+    operationId: "getTransactionsByAccount",
+  },
+};
 
-  const handleChange = (key: string, value: string) => {
-    setArgs(prev => ({ ...prev, [key]: value }));
-  };
+function ToolCard({ tool, callTool }: { tool: any; callTool: (name: string, args: any) => Promise<any> }) {
+  const [jsonArgs, setJsonArgs] = useState('');
+  const [result, setResult] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  
 
   const handleCall = async () => {
+    setIsLoading(true);
+    setResult(null);
     try {
-      const parsedArgs = propKeys.length ? args : {};
-      const res = await callTool(tool.name, parsedArgs);
+      const parsedArgs = jsonArgs ? JSON.parse(jsonArgs) : {};
+      let res = await callTool(tool.name, parsedArgs);
+
+      if (res && Array.isArray(res.content) && res.content.length > 0 && res.content[0].type === 'text' && typeof res.content[0].text === 'string') {
+        try {
+          res = JSON.parse(res.content[0].text);
+        } catch (e) {
+          // Not a JSON string, so we'll just show the text
+          res = res.content[0].text;
+        }
+      }
+
       setResult(res);
-    } catch (err) {
-      console.error('Tool call failed:', err);
-      setResult({ error: String(err) });
+    } catch (error) {
+      console.error("Error parsing JSON or calling tool:", error);
+      setResult({ error: "Invalid JSON format or tool call failed." });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -30,41 +59,99 @@ function ToolCard({ tool, callTool }: { tool: any; callTool: (name: string, args
       <h3 className="font-semibold text-lg">{tool.name}</h3>
       {tool.description && <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>}
 
-      {propKeys.length > 0 && (
-        <form className="space-y-2 mt-4" onSubmit={e => { e.preventDefault(); handleCall(); }}>
-          {propKeys.map(key => (
-            <div key={key} className="flex flex-col gap-1">
-              <label className="text-sm font-medium" htmlFor={`${tool.name}-${key}`}>{key}</label>
-              <Input
-                id={`${tool.name}-${key}`}
-                value={args[key] || ''}
-                onChange={e => handleChange(key, e.target.value)}
-              />
+      {tool.inputSchema && (
+        <>
+          {exampleParameters[tool.name as keyof typeof exampleParameters] && (
+            <div className="bg-blue-50 p-4 rounded-lg mt-4">
+              <h4 className="font-medium mb-2">Example Parameters:</h4>
+              <pre className="text-sm overflow-x-auto">
+                {JSON.stringify(exampleParameters[tool.name as keyof typeof exampleParameters], null, 2)}
+              </pre>
             </div>
-          ))}
-          <Button type="submit" className="w-full">Call Tool</Button>
-        </form>
+          )}
+          <form className="space-y-2 mt-4" onSubmit={e => { e.preventDefault(); handleCall(); }}>
+            <label className="text-sm font-medium" htmlFor={`${tool.name}-args`}>Parameters (JSON)</label>
+            <textarea
+              id={`${tool.name}-args`}
+              value={jsonArgs}
+              onChange={e => setJsonArgs(e.target.value)}
+              className="w-full border rounded-md p-2 font-mono text-sm"
+              rows={10}
+              placeholder="Enter JSON parameters here..."
+            />
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Calling...
+                </>
+              ) : (
+                'Call Tool'
+              )}
+            </Button>
+          </form>
+        </>
       )}
-      {propKeys.length === 0 && (
-        <Button onClick={handleCall} className="mt-4 w-full">Call Tool</Button>
+      {!tool.inputSchema && (
+        <Button onClick={handleCall} className="mt-4 w-full" disabled={isLoading}>
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Calling...
+          </>
+        ) : (
+          'Call Tool'
+        )}
+      </Button>
       )}
 
       {result && (
         <div className="mt-4">
           <h4 className="font-semibold">Result:</h4>
-          <pre className="bg-muted/50 p-2 rounded-md overflow-x-auto text-sm">
-            <code>{JSON.stringify(result, null, 2)}</code>
-          </pre>
+          <div className="bg-muted/50 p-2 rounded-md overflow-x-auto text-sm font-mono">
+            <JsonViewer data={result} />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+const JsonViewer = ({ data }: { data: any }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  if (typeof data !== 'object' || data === null) {
+    return <span className="text-blue-500">{JSON.stringify(data)}</span>;
+  }
+
+  const toggleExpand = () => setIsExpanded(!isExpanded);
+
+  const entries = Object.entries(data);
+  const isArray = Array.isArray(data);
+
+  return (
+    <div>
+      <button onClick={toggleExpand} className="focus:outline-none">
+        {isExpanded ? '[-]' : '[+]'} {isArray ? `Array(${entries.length})` : `Object`}
+      </button>
+      {isExpanded && (
+        <div className="pl-4 border-l border-gray-600 ml-2">
+          {entries.map(([key, value]) => (
+            <div key={key}>
+              <span className="text-purple-400">{isArray ? '' : `"${key}": `}</span>
+              <JsonViewer data={value} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 function McpConnection({ url }: { url: string }) {
-  const { state, tools, error, retry, callTool } = useMcp({
+  const { state, tools, callTool, error, retry } = useMcp({
     url,
-    clientName: 'list-all-zora-coin',
+    clientName: 'Nodit Playground',
     autoReconnect: true,
   });
 
@@ -95,15 +182,15 @@ function McpConnection({ url }: { url: string }) {
   );
 }
 
-export function UseNoditMcpPage() {
+export default function UseNoditMcp() {
   const [apiKey, setApiKey] = useState('');
   const [isKeySet, setIsKeySet] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [mcpUrl, setMcpUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('nodit-api-key');
     if (storedKey) {
+      setApiKey(storedKey);
       setIsKeySet(true);
     }
   }, []);
@@ -111,64 +198,59 @@ export function UseNoditMcpPage() {
   const handleSaveKey = () => {
     localStorage.setItem('nodit-api-key', apiKey);
     setIsKeySet(true);
-    alert('API Key saved!');
   };
 
-  const handleConnectMcp = () => {
-    const storedKey = localStorage.getItem('nodit-api-key');
-    if (storedKey) {
-      setMcpUrl(`https://mcp.nodit.io/sse?apiKey=${storedKey}`);
-    } else {
-      alert('Please save an API key first.');
-    }
+  const handleRemoveKey = () => {
+    localStorage.removeItem('nodit-api-key');
+    setApiKey('');
+    setIsKeySet(false);
   };
 
   const toggleShowApiKey = () => setShowApiKey(!showApiKey);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8">Using Nodit MCP</h1>
-
-      <div className="w-full max-w-md mx-auto mb-8">
-        <p className="text-lg mb-4 text-center">
-          Please enter your Nodit API key to continue.
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2">Nodit MCP Playground</h1>
+        <p className="text-muted-foreground mb-6">
+          Enter your Nodit API key to get started. You can get one from the{' '}
+          <a href="https://www.nodit.io/" target="_blank" rel="noopener noreferrer" className="underline">
+            Nodit website
+          </a>
+          .
         </p>
-        <div className="relative mb-4">
-          <Input
-            type={showApiKey ? 'text' : 'password'}
-            placeholder="Enter your Nodit API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="w-full pr-10"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute inset-y-0 right-0 h-full px-3"
-            onClick={toggleShowApiKey}
-          >
-            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </Button>
-        </div>
-        <Button onClick={handleSaveKey} className="w-full mb-4">
-          Save API Key
-        </Button>
-        <Button onClick={handleConnectMcp} className="w-full mb-4">
-          Connect to MCP
-        </Button>
-        {isKeySet && !mcpUrl && (
-          <p className="text-green-500 text-center mb-4">Nodit API Key is set. Ready to connect.</p>
+        {!isKeySet ? (
+          <>
+            <div className="relative mb-4">
+              <Input
+                type={showApiKey ? 'text' : 'password'}
+                placeholder="Enter your Nodit API Key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="w-full pr-10"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute inset-y-0 right-0 h-full px-3"
+                onClick={toggleShowApiKey}
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            <Button onClick={handleSaveKey} className="w-full mb-4">
+              Save and Connect
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center justify-between p-2 bg-muted rounded-md mb-4">
+            <p className="text-sm text-green-500">API Key is set.</p>
+            <Button onClick={handleRemoveKey} variant="destructive" size="sm">Remove Key</Button>
+          </div>
         )}
-      </div>
 
-      {mcpUrl ? (
-        <McpConnection url={mcpUrl} />
-      ) : (
-        <p className="text-lg text-center">
-          Enter and save your API key, then click "Connect to MCP" to see the available tools.
-        </p>
-      )}
+        {isKeySet && <McpConnection url={`https://mcp.nodit.io/sse?apiKey=${apiKey}`} />}
+      </div>
     </div>
   );
 }

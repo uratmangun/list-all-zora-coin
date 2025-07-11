@@ -21,11 +21,12 @@ interface TransactionData {
   tokenName: string;
   tokenSymbol: string;
   totalSupply: string;
+  contractAddress: string;
   events: any[];
 }
 
 export function GetFirstTransaction() {
-  const [contractAddress, setContractAddress] = useState('0x777777751622c0d3258f214F9DF38E35BF45baF3');
+  const contractAddress = '0x777777751622c0d3258f214F9DF38E35BF45baF3';
   const [steps, setSteps] = useState<ApiStep[]>([
     { id: 'categories', title: 'nodit_list_nodit_api_categories', status: 'pending' },
     { id: 'dataApis', title: 'nodit_list_nodit_data_apis', status: 'pending' },
@@ -140,32 +141,45 @@ export function GetFirstTransaction() {
           }
         },
         response: {
-          hash: '0x25dfcd638c3068e6a0c277efc3153334d4ada12b0e7620bc771004f0c133b96e',
-          blockNumber: 32710308,
-          timestamp: 1752209963,
-          from: '0x6E1e29890611A2936c874FFbDFB92Ac293897011',
-          gasUsed: 2592976,
+          hash: '0x3a45364759fab9ff1a3ba38ed9681370dc649b6b23163d5e2f6de87d04b0edd0',
+          blockNumber: 32719208,
+          timestamp: 1752227763,
+          from: '0xa3d1C428829E5d4acC2DD4d9986E53A712b499f6',
+          gasUsed: 2212477,
           status: '1',
           functionSignature: '0xa423ada1',
-          tokenName: 'Annylee666',
-          tokenSymbol: 'WOSHIFUPO666',
+          tokenName: 'Satoshi Coin',
+          tokenSymbol: 'SAT',
           totalSupply: '1000000000000000000000000000',
+          contractAddress: '0xd6a9cb928341F537Bb299B131f6Ce07d48B23D8c',
           events: [
             {
+              type: 'ContractMetadataUpdated',
+              data: 'Token metadata updated: "Satoshi Coin" (SAT) with IPFS URI'
+            },
+            {
               type: 'OwnerUpdated',
-              data: 'Contract ownership updated'
-            },
-            {
-              type: 'ContractMetadataUpdated', 
-              data: 'Metadata updated with Base64 encoded JSON'
+              data: 'Contract ownership transferred to 0xa3d1C428829E5d4acC2DD4d9986E53A712b499f6'
             },
             {
               type: 'Transfer',
-              data: 'Token distribution: 10,000,000,000,000,000,000,000,000 to creator'
+              data: 'Initial mint: 1,000,000,000,000,000,000,000,000,000 tokens to contract'
             },
             {
               type: 'Transfer',
-              data: 'Token distribution: 990,000,000,000,000,000,000,000,000 to secondary address'
+              data: 'Creator allocation: 10,000,000,000,000,000,000,000,000 tokens to 0xa3d1C428829E5d4acC2DD4d9986E53A712b499f6'
+            },
+            {
+              type: 'Transfer',
+              data: 'Pool allocation: 990,000,000,000,000,000,000,000,000 tokens to 0x9ea932730A7787000042e34390B8E435dD839040'
+            },
+            {
+              type: 'Transfer',
+              data: 'Liquidity provision: 989,999,999,999,999,999,999,999,995 tokens to Uniswap pool'
+            },
+            {
+              type: 'Initialized',
+              data: 'Contract initialized with version 1'
             }
           ]
         }
@@ -191,7 +205,7 @@ export function GetFirstTransaction() {
     } catch (error) {
       console.error('Error executing steps:', error);
     }
-  }, [contractAddress]);
+  }, []);
 
   const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleString();
@@ -209,19 +223,16 @@ export function GetFirstTransaction() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <h1 className="text-4xl font-bold mb-8">MCP Nodit API Tool Calls</h1>
+      <h1 className="text-4xl font-bold mb-8">MCP Nodit API Tool Calls Top Get Detail of a transaction of a zora coin</h1>
       
-      {/* Contract Address Input */}
+      {/* Contract Address Display */}
       <Card className="p-6 mb-8">
         <h2 className="text-2xl font-semibold mb-4">Contract Configuration</h2>
         <div>
-          <label className="block text-sm font-medium mb-2">Contract Address</label>
-          <Input
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
-            placeholder="Enter contract address"
-            className="font-mono"
-          />
+          <label className="block text-sm font-medium mb-2">Contract Address (Zora Creator)</label>
+          <div className="bg-gray-50 p-3 rounded-md border">
+            <p className="font-mono text-sm break-all">{contractAddress}</p>
+          </div>
         </div>
       </Card>
 
@@ -302,6 +313,10 @@ export function GetFirstTransaction() {
                   <p className="font-mono text-sm break-all">{lastTransaction.from}</p>
                 </div>
                 <div>
+                  <span className="font-medium">Contract Address:</span>
+                  <p className="font-mono text-sm break-all">{lastTransaction.contractAddress}</p>
+                </div>
+                <div>
                   <span className="font-medium">Gas Used:</span>
                   <p>{lastTransaction.gasUsed.toLocaleString()}</p>
                 </div>
@@ -361,12 +376,12 @@ export function GetFirstTransaction() {
           <div className="mt-6 bg-blue-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">Analysis Summary</h3>
             <p className="text-sm">
-              This transaction represents a token creation/launch operation on Base mainnet. 
+              This transaction represents a token creation/launch operation on Base mainnet using the Zora protocol. 
               The contract created a new token called "{lastTransaction.tokenName}" ({lastTransaction.tokenSymbol}) 
-              with a massive total supply. The transaction involved minting tokens, setting up ownership, 
-              updating metadata, and performing initial token distribution. Multiple events were logged 
-              including ownership updates, metadata changes, and large token transfers indicating 
-              this was likely a meme token or similar launch.
+              with a massive total supply of 1 billion tokens. The transaction involved minting tokens, setting up ownership 
+              to the creator, updating metadata with IPFS URI, and performing initial token distribution including 
+              liquidity provision to Uniswap. Multiple events were logged including ownership updates, metadata changes, 
+              and large token transfers indicating this was a successful token launch with immediate liquidity setup.
             </p>
           </div>
         </Card>
