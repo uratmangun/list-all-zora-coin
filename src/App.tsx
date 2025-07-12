@@ -7,6 +7,8 @@ import { CoinsPage } from "./pages/Coins";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import UseNoditMcp from "./pages/UseNoditMcp";
 import { GetFirstTransaction } from "./pages/GetFirstTransaction";
+import { StagewiseToolbar } from "@stagewise/toolbar-react";
+import ReactPlugin from "@stagewise-plugins/react";
 
 function Layout() {
   return (
@@ -22,6 +24,7 @@ function Layout() {
         </div>
       </header>
       <Outlet />
+      <StagewiseToolbar config={{ plugins: [ReactPlugin] }} />
     </div>
   );
 }

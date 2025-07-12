@@ -16,12 +16,10 @@ import { WagmiProvider } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
-import { TwentyFirstToolbar } from "@21st-extension/toolbar-react";
-import { ReactPlugin } from "@21st-extension/react";
 
 const config = getDefaultConfig({
   appName: "My RainbowKit App",
-  projectId: "YOUR_PROJECT_ID",
+  projectId: "07c8050f8dc533ebea85c3cf4e535d59",
   chains: [base, baseSepolia],
   ssr: true, // If your dApp uses server side rendering (SSR)
 });
@@ -35,12 +33,7 @@ const app = (
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
           <BrowserRouter>
-                        <App />
-            <TwentyFirstToolbar
-              config={{
-                plugins: [ReactPlugin],
-              }}
-            />
+            <App />
           </BrowserRouter>
         </RainbowKitProvider>
       </QueryClientProvider>
