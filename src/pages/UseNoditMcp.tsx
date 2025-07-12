@@ -12,9 +12,9 @@ const exampleParameters: Record<string, any> = {
     "operationId": "getTransactionsByAccount",
     "requestBody": {
       "accountAddress": "0x777777751622c0d3258f214F9DF38E35BF45baF3",
-      "limit": 1,
-      "includeLogs": true,
-      "includeDecoded": true
+      "rpp": 1,
+      "withLogs": true,
+      "withDecode": true
     }
   },
   get_nodit_api_spec: {
