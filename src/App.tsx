@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Search, TrendingUp, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Routes, Route, Link, Outlet } from "react-router-dom";
-import { CoinsPage } from "./pages/Coins";
+import CoinsPage from "./pages/Coins";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import UseNoditMcp from "./pages/UseNoditMcp";
 import { GetFirstTransaction } from "./pages/GetFirstTransaction";
