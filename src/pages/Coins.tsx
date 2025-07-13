@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function CoinsPage() {
@@ -13,26 +14,27 @@ export function CoinsPage() {
             <div>Contract Name</div>
             <div>Address</div>
           </div>
-          <div className="grid grid-cols-4 gap-4 items-center mb-2">
+          <div className="grid grid-cols-4 gap-4 items-center">
             <div>Base</div>
             <div>8453</div>
             <div>ZoraFactory</div>
             <a href="https://basescan.org/address/0x777777751622c0d3258f214F9DF38E35BF45baF3" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">0x777777751622c0d3258f214F9DF38E35BF45baF3</a>
           </div>
-          <div className="grid grid-cols-4 gap-4 items-center">
-            <div>Base Sepolia</div>
-            <div>84532</div>
-            <div>ZoraFactory</div>
-            <a href="https://sepolia.basescan.org/address/0x777777751622c0d3258f214F9DF38E35BF45baF3" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">0x777777751622c0d3258f214F9DF38E35BF45baF3</a>
-          </div>
         </div>
       </div>
       <div className="mb-8">
-        <Input
-          type="search"
-          placeholder="Search for a coin..."
-          className="max-w-sm"
-        />
+        <div className="flex gap-2 max-w-md">
+          <select className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+            <option value="symbol">Token Symbol</option>
+            <option value="contract">Token Contract</option>
+          </select>
+          <Input
+            type="search"
+            placeholder="Search for a coin..."
+            className="flex-1"
+          />
+          <Button type="button">Search</Button>
+        </div>
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {/* Placeholder for coin cards */}
