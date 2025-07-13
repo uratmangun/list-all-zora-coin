@@ -6,6 +6,7 @@ import { useState } from "react";
 import * as React from "react";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { X } from "lucide-react";
+import { useMcp } from 'use-mcp/react';
 
 type TSelectData = {
   id: string;
@@ -114,6 +115,14 @@ function CoinsPage() {
   const [searchType, setSearchType] = useState("symbol");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const { state, tools, callTool, error, retry } = useMcp({
+    url: `https://nodit-mcp.uratmangun.fun/sse`,
+    clientName: 'Zora Coins App',
+    autoReconnect: true,
+  });
+
+  const isConnected = state === 'ready';
+
   const handleSearch = () => {
     console.log(`Searching for ${searchQuery} by ${searchType}`);
     // Implement your search logic here
@@ -147,6 +156,13 @@ function CoinsPage() {
       </div>
 
       <div className="mb-8">
+        {state === 'failed' && (
+          <div className="mb-4 flex items-center justify-center">
+            <Button onClick={retry} variant="outline" size="sm">
+              Retry Connection
+            </Button>
+          </div>
+        )}
         <div className="flex w-full flex-col items-center gap-2 sm:flex-row">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground shrink-0">Filter by</label>
@@ -166,15 +182,21 @@ function CoinsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pr-9"
+              disabled={!isConnected}
             />
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
               <Search className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
-          <Button type="button" onClick={handleSearch}>
+          <Button type="button" onClick={handleSearch} disabled={!isConnected}>
             Search
           </Button>
         </div>
+        {!isConnected && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            Connection status: {state}
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
