@@ -7,6 +7,7 @@ import * as React from "react";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { X } from "lucide-react";
 import { useMcp } from 'use-mcp/react';
+import { useNavigate } from 'react-router-dom';
 
 type TSelectData = {
   id: string;
@@ -116,6 +117,7 @@ function CoinsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const { state, tools, callTool, error, retry } = useMcp({
     url: `https://nodit-mcp.uratmangun.fun/sse`,
@@ -347,22 +349,26 @@ function CoinsPage() {
         )}
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         {searchResults.map((token, i) => (
-                      <Card key={token.address || i} className="transition-all hover:shadow-md">
-              <CardHeader>
-                <CardTitle>{token.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Symbol: {token.symbol}</p>
-                <p className="text-sm text-muted-foreground">
-                  Address: <span className="font-mono text-xs">{truncateHash(token.address)}</span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Tx Hash: <span className="font-mono text-xs">{truncateHash(token.deployedTransactionHash)}</span>
-                </p>
-              </CardContent>
-            </Card>
+          <Card 
+            key={token.address || i} 
+            className="transition-all hover:shadow-md cursor-pointer hover:scale-[1.02]"
+            onClick={() => navigate(`/token/${token.address}`)}
+          >
+            <CardHeader>
+              <CardTitle>{token.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Symbol: {token.symbol}</p>
+              <p className="text-sm text-muted-foreground">
+                Address: <span className="font-mono text-xs">{truncateHash(token.address)}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Tx Hash: <span className="font-mono text-xs">{truncateHash(token.deployedTransactionHash)}</span>
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

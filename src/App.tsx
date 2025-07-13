@@ -10,6 +10,7 @@ import { GetFirstTransaction } from "./pages/GetFirstTransaction";
 import { SearchTokenBySymbol } from "./pages/SearchTokenBySymbol";
 import { TokenFactorySearch } from "./pages/TokenFactorySearch";
 import { ContractAnalysisDocumentation } from "./pages/ContractAnalysisDocumentation";
+import TokenDetails from "./pages/TokenDetails";
 import { StagewiseToolbar } from "@stagewise/toolbar-react";
 import ReactPlugin from "@stagewise-plugins/react";
 
@@ -136,6 +137,7 @@ export function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
                 <Route path="coins" element={<CoinsPage />} />
+        <Route path="token/:address" element={<TokenDetails />} />
         <Route path="howitworks" element={<HowItWorksPage />} />
         <Route path="usenoditmcp" element={<UseNoditMcp />} />
         <Route path="getfirsttransaction" element={<GetFirstTransaction />} />
