@@ -334,7 +334,7 @@ export default function TokenDetails() {
           {/* Chat Assistant */}
           <Card>
             <CardHeader>
-              <CardTitle>AI Assistant</CardTitle>
+              <CardTitle>Chat about the coin</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
