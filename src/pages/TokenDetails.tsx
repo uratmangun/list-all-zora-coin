@@ -2,10 +2,13 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getCoin } from "@zoralabs/coins-sdk";
 import { base } from "viem/chains";
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
+import { useMcp } from 'use-mcp/react';
+import OpenAI from "openai";
+import ReactMarkdown from 'react-markdown';
 
 export default function TokenDetails() {
   const { address } = useParams<{ address: string }>();
@@ -13,11 +16,72 @@ export default function TokenDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentMessage, setCurrentMessage] = useState("");
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hello! I'm here to help you understand this token. What would you like to know?" },
-    { role: "user", content: "What is this token about?" },
-    { role: "assistant", content: "This is a Zora coin token. Based on the data, I can see it has various properties including market cap, creator information, and media content. Feel free to ask me anything specific about this token!" }
-  ]);
+  const [messages, setMessages] = useState<Array<{ role: "assistant" | "user" | "system"; content: string }>>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openrouter_api_key') || '');
+
+  const { state, tools, callTool, error: mcpError, retry } = useMcp({
+    url: `https://nodit-mcp.uratmangun.fun/sse`,
+    clientName: 'Zora Coins App',
+    autoReconnect: true,
+  });
+
+  // Convert MCP tools to OpenAI SDK tool format
+  const getOpenAITools = (): OpenAI.Chat.Completions.ChatCompletionTool[] => {
+    if (!tools || tools.length === 0) return [];
+    
+    return tools.map((mcpTool) => ({
+      type: "function",
+      function: {
+        name: mcpTool.name,
+        description: mcpTool.description || '',
+        parameters: mcpTool.inputSchema || {
+          type: "object",
+          properties: {},
+          required: []
+        }
+      }
+    }));
+  };
+
+  // Available MCP functions for tool calling
+  const getAvailableFunctions = () => {
+    if (!tools || tools.length === 0) return {};
+    
+    const functions: Record<string, (args: any) => Promise<string>> = {};
+    
+    tools.forEach((mcpTool) => {
+      functions[mcpTool.name] = async (args: any) => {
+        try {
+          console.log(`Calling MCP tool: ${mcpTool.name}`, args);
+          const result = await callTool(mcpTool.name, args);
+          return JSON.stringify(result);
+        } catch (error) {
+          console.error(`Error calling ${mcpTool.name}:`, error);
+          return JSON.stringify({ error: error.message || "Unknown error" });
+        }
+      };
+    });
+    
+    return functions;
+  };
+
+  // Auto-scroll to bottom when messages change or generation completes
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, isGenerating]);
+
+  const clearMessages = () => {
+    setMessages([]);
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    localStorage.setItem('openrouter_api_key', value);
+  };
 
   useEffect(() => {
     const fetchCoinData = async () => {
@@ -42,14 +106,133 @@ export default function TokenDetails() {
     fetchCoinData();
   }, [address]);
 
-  const handleSendMessage = () => {
-    if (currentMessage.trim()) {
-      setMessages([...messages, { role: "user", content: currentMessage }]);
-      setCurrentMessage("");
-      // Mock AI response
-      setTimeout(() => {
-        setMessages(prev => [...prev, { role: "assistant", content: "This is a mock AI response. I would analyze the token data and provide relevant insights here." }]);
-      }, 1000);
+  const handleSendMessage = async () => {
+    if (!currentMessage.trim() || isGenerating) return;
+
+    const userMessage = { role: "user" as const, content: currentMessage };
+    setMessages(prev => [...prev, userMessage]);
+    setCurrentMessage("");
+    setIsGenerating(true);
+
+    try {
+      // Debug: Check MCP tools
+      console.log("MCP State:", state);
+      console.log("MCP Tools:", tools);
+      console.log("MCP Tools Length:", tools?.length);
+
+      // Create context from coin data
+      const coinContext = coin ? `
+Token Information:
+- Name: ${coin.name || "N/A"}
+- Symbol: ${coin.symbol || "N/A"}
+- Address: ${address}
+- Description: ${coin.description || "No description"}
+- Market Cap: $${coin.marketCap || "N/A"}
+- Total Supply: ${coin.totalSupply || "N/A"}
+- Unique Holders: ${coin.uniqueHolders || "N/A"}
+- Creator: ${coin.creatorAddress || "N/A"}
+- Created: ${coin.createdAt ? new Date(coin.createdAt).toLocaleDateString() : "N/A"}
+- Total Volume: ${coin.totalVolume || "N/A"}
+- 24h Volume: ${coin.volume24h || "N/A"}
+- Market Cap Delta 24h: ${coin.marketCapDelta24h || "N/A"}
+      ` : `Token Address: ${address}`;
+
+      const openai = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: apiKey || import.meta.env.VITE_OPENAI_API_KEY,
+        dangerouslyAllowBrowser: true
+      });
+
+      const openaiTools = getOpenAITools();
+      const toolNames = openaiTools.map(t => t.function.name);
+      
+      // Debug: Check converted tools
+      console.log("Available OpenAI Tools:", toolNames);
+      console.log("Tools count:", toolNames.length);
+
+      // Build message history for OpenAI
+      const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        {
+          role: 'system',
+          content: `You are a helpful assistant that analyzes cryptocurrency tokens, specifically Zora coins. You have access to the following token data: ${coinContext}. 
+          
+          ${toolNames.length > 0 ? `You also have access to these tools: ${toolNames.join(', ')}. Use them when appropriate to get additional information about blockchain data, transactions, or token details.` : ''}
+          
+          Please provide helpful, accurate information about this token based on the data provided. If asked about specific metrics, refer to the actual data. Be concise but informative.`
+        },
+        ...messages.filter(m => m.role !== 'system').map(m => ({
+          role: m.role as "user" | "assistant",
+          content: m.content
+        })),
+        userMessage
+      ];
+
+      // Make the initial request
+      const response = await openai.chat.completions.create({
+        model: "openrouter/cypher-alpha:free",
+        messages: openaiMessages,
+        tools: openaiTools,
+        temperature: 0.3,
+        tool_choice: "auto",
+      
+      });
+
+      const responseMessage = response.choices[0].message;
+      console.log("Response message:", JSON.stringify(responseMessage, null, 2));
+
+      const toolCalls = responseMessage.tool_calls || [];
+
+      if (toolCalls.length > 0) {
+        // Process tool calls
+        openaiMessages.push(responseMessage);
+        const availableFunctions = getAvailableFunctions();
+
+        for (const toolCall of toolCalls) {
+          const functionName = toolCall.function.name;
+          const functionToCall = availableFunctions[functionName];
+          const functionArgs = JSON.parse(toolCall.function.arguments);
+          
+          // Call corresponding MCP function if it exists
+          const functionResponse = functionToCall ? await functionToCall(functionArgs) : "Function not available";
+          console.log(functionResponse);
+
+          openaiMessages.push({
+            role: "tool",
+            content: functionResponse,
+            tool_call_id: toolCall.id,
+          });
+        }
+
+        // Make the final request with tool call results
+        const finalResponse = await openai.chat.completions.create({
+          model: "openrouter/cypher-alpha:free",
+          messages: openaiMessages,
+          tools: openaiTools,
+          temperature: 0.3,
+          tool_choice: "auto",
+         
+        });
+
+        const finalContent = finalResponse.choices[0].message.content || "No response generated.";
+        console.log("Final result:", finalContent);
+        setMessages(prev => [...prev, { role: "assistant", content: finalContent }]);
+      } else {
+        // No tool calls, use the direct response
+        const directContent = responseMessage.content || "No response generated.";
+        console.log("Direct result:", directContent);
+        setMessages(prev => [...prev, { role: "assistant", content: directContent }]);
+      }
+
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "I apologize, but I'm having trouble generating a response right now. Please try again later." 
+      }]);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -77,6 +260,8 @@ export default function TokenDetails() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Token Details</h1>
+        
+
         
         <div className="grid gap-6">
           {/* Basic Information */}
@@ -334,43 +519,105 @@ export default function TokenDetails() {
           {/* Chat Assistant */}
           <Card>
             <CardHeader>
-              <CardTitle>Chat about the coin</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Chat Messages */}
-                <div className="h-64 overflow-y-auto space-y-3 p-4 border rounded-lg bg-muted/30">
-                  {messages.map((message, index) => (
-                    <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] p-3 rounded-lg ${
-                        message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-background border'
-                      }`}>
-                        <p className="text-sm">{message.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Message Input */}
-                <div className="flex gap-2">
-                  <Input
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    placeholder="Ask me anything about this token..."
-                    className="flex-1"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSendMessage();
-                      }
-                    }}
-                  />
-                  <Button onClick={handleSendMessage} disabled={!currentMessage.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+              <div className="flex items-center justify-between">
+                <CardTitle>Chat about the coin</CardTitle>
+                <div className="flex items-center gap-2">
+                  {messages.length > 0 && (
+                    <Button
+                      onClick={clearMessages}
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
                 </div>
               </div>
+              
+              {/* API Key Input */}
+              <div className="flex items-center gap-2 mt-3">
+                <label htmlFor="api-key" className="text-sm font-medium text-muted-foreground shrink-0">
+                  OpenRouter API Key:
+                </label>
+                <Input
+                  id="api-key"
+                  type="password"
+                  placeholder="sk-or-v1-..."
+                  value={apiKey}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {state === 'failed' ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Connection to MCP service failed
+                    </p>
+                    <Button onClick={retry} variant="outline" size="sm">
+                      Retry Connection
+                    </Button>
+                  </div>
+                </div>
+              ) : state === 'ready' ? (
+                <div className="space-y-4">
+                  {/* Chat Messages */}
+                  <div ref={chatContainerRef} className="h-64 overflow-y-auto space-y-3 p-4 border rounded-lg bg-muted/30">
+                    {messages.map((message, index) => (
+                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] p-3 rounded-lg ${
+                          message.role === 'user' 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-background border'
+                        }`}>
+                          {message.role === 'assistant' ? (
+                            <div className="text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                              <ReactMarkdown>{message.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="text-sm">{message.content}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {isGenerating && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[70%] p-3 rounded-lg bg-background border">
+                          <p className="text-sm">Thinking...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Message Input */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={currentMessage}
+                      onChange={(e) => setCurrentMessage(e.target.value)}
+                      placeholder="Ask me anything about this token..."
+                      className="flex-1"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+                    <Button onClick={handleSendMessage} disabled={!currentMessage.trim() || isGenerating}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-sm text-muted-foreground">
+                    Connecting to MCP service...
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
