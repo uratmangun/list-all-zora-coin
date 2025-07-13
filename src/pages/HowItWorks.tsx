@@ -15,6 +15,12 @@ export function HowItWorksPage() {
         <Link to="/getfirsttransaction">
           <Button>Go to Get First Transaction</Button>
         </Link>
+        <Link to="/searchtokenbysymbol">
+          <Button>Search Token by Symbol</Button>
+        </Link>
+        <Link to="/tokenfactorysearch">
+          <Button>Token Factory Search Documentation</Button>
+        </Link>
       </div>
     </div>
   );

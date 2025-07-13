@@ -7,6 +7,8 @@ import { CoinsPage } from "./pages/Coins";
 import { HowItWorksPage } from "./pages/HowItWorks";
 import UseNoditMcp from "./pages/UseNoditMcp";
 import { GetFirstTransaction } from "./pages/GetFirstTransaction";
+import { SearchTokenBySymbol } from "./pages/SearchTokenBySymbol";
+import { TokenFactorySearch } from "./pages/TokenFactorySearch";
 import { StagewiseToolbar } from "@stagewise/toolbar-react";
 import ReactPlugin from "@stagewise-plugins/react";
 
@@ -136,6 +138,8 @@ export function App() {
         <Route path="howitworks" element={<HowItWorksPage />} />
         <Route path="usenoditmcp" element={<UseNoditMcp />} />
         <Route path="getfirsttransaction" element={<GetFirstTransaction />} />
+        <Route path="searchtokenbysymbol" element={<SearchTokenBySymbol />} />
+        <Route path="tokenfactorysearch" element={<TokenFactorySearch />} />
       </Route>
     </Routes>
   );

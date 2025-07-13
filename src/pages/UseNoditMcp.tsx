@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { useMcp } from 'use-mcp/react';
 
@@ -183,73 +182,14 @@ function McpConnection({ url }: { url: string }) {
 }
 
 export default function UseNoditMcp() {
-  const [apiKey, setApiKey] = useState('');
-  const [isKeySet, setIsKeySet] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  useEffect(() => {
-    const storedKey = localStorage.getItem('nodit-api-key');
-    if (storedKey) {
-      setApiKey(storedKey);
-      setIsKeySet(true);
-    }
-  }, []);
-
-  const handleSaveKey = () => {
-    localStorage.setItem('nodit-api-key', apiKey);
-    setIsKeySet(true);
-  };
-
-  const handleRemoveKey = () => {
-    localStorage.removeItem('nodit-api-key');
-    setApiKey('');
-    setIsKeySet(false);
-  };
-
-  const toggleShowApiKey = () => setShowApiKey(!showApiKey);
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">Nodit MCP Playground</h1>
         <p className="text-muted-foreground mb-6">
-          Enter your Nodit API key to get started. You can get one from the{' '}
-          <a href="https://www.nodit.io/" target="_blank" rel="noopener noreferrer" className="underline">
-            Nodit website
-          </a>
-          .
+          Connected to Nodit MCP service. Explore the available tools below.
         </p>
-        {!isKeySet ? (
-          <>
-            <div className="relative mb-4">
-              <Input
-                type={showApiKey ? 'text' : 'password'}
-                placeholder="Enter your Nodit API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="w-full pr-10"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute inset-y-0 right-0 h-full px-3"
-                onClick={toggleShowApiKey}
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
-            </div>
-            <Button onClick={handleSaveKey} className="w-full mb-4">
-              Save and Connect
-            </Button>
-          </>
-        ) : (
-          <div className="flex items-center justify-between p-2 bg-muted rounded-md mb-4">
-            <p className="text-sm text-green-500">API Key is set.</p>
-            <Button onClick={handleRemoveKey} variant="destructive" size="sm">Remove Key</Button>
-          </div>
-        )}
-
-        {isKeySet && <McpConnection url={`https://mcp.nodit.io/sse?apiKey=${apiKey}`} />}
+        <McpConnection url={`https://nodit-mcp.uratmangun.fun/sse`} />
       </div>
     </div>
   );
