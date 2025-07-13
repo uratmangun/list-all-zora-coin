@@ -203,9 +203,76 @@ function CoinsPage() {
       } finally {
         setIsLoading(false);
       }
-    } else {
-      console.log(`Searching for ${searchQuery} by ${searchType}`);
-      // Implement contract search logic here
+    } else if (searchType === "contract") {
+      setIsLoading(true);
+      try {
+        const result = await callTool("call_nodit_api", {
+          protocol: "base",
+          network: "mainnet",
+          operationId: "getTokenContractMetadataByContracts",
+          requestBody: {
+            contractAddresses: [searchQuery.trim()]
+          }
+        });
+
+        // Parse the response
+        let parsedResult = result;
+        if (result && Array.isArray(result.content) && result.content.length > 0 && result.content[0].type === 'text') {
+          parsedResult = JSON.parse(result.content[0].text);
+        }
+
+        const contracts = Array.isArray(parsedResult) ? parsedResult : [];
+        
+        // If we have contracts, validate each one by checking the deployment transaction
+        if (contracts.length > 0) {
+          const validatedTokens = [];
+          
+          for (const token of contracts) {
+            if (token.deployedTransactionHash) {
+              try {
+                const txResult = await callTool("call_nodit_api", {
+                  protocol: "base",
+                  network: "mainnet",
+                  operationId: "getTransactionByHash",
+                  requestBody: {
+                    transactionHash: token.deployedTransactionHash,
+                    withLogs: true,
+                    withDecode: true
+                  }
+                });
+
+                // Parse the transaction response
+                let parsedTxResult = txResult;
+                if (txResult && Array.isArray(txResult.content) && txResult.content.length > 0 && txResult.content[0].type === 'text') {
+                  parsedTxResult = JSON.parse(txResult.content[0].text);
+                }
+
+                // Check if any log in the transaction has the Zora factory contract address
+                if (parsedTxResult.logs && Array.isArray(parsedTxResult.logs)) {
+                  const hasZoraFactoryLog = parsedTxResult.logs.some(log => 
+                    log.contractAddress === "0x777777751622c0d3258f214F9DF38E35BF45baF3"
+                  );
+                  
+                  if (hasZoraFactoryLog) {
+                    validatedTokens.push(token);
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to validate token:", token.address, error);
+              }
+            }
+          }
+          
+          setSearchResults(validatedTokens);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (error) {
+        console.error("Contract search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
