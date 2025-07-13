@@ -151,7 +151,52 @@ function CoinsPage() {
           parsedResult = JSON.parse(result.content[0].text);
         }
 
-        setSearchResults(parsedResult.items || []);
+        const items = parsedResult.items || [];
+        
+        // If we have items, validate each one by checking the deployment transaction
+        if (items.length > 0) {
+          const validatedTokens = [];
+          
+          for (const token of items) {
+            if (token.deployedTransactionHash) {
+              try {
+                const txResult = await callTool("call_nodit_api", {
+                  protocol: "base",
+                  network: "mainnet",
+                  operationId: "getTransactionByHash",
+                  requestBody: {
+                    transactionHash: token.deployedTransactionHash,
+                    withLogs: true,
+                    withDecode: true
+                  }
+                });
+
+                // Parse the transaction response
+                let parsedTxResult = txResult;
+                if (txResult && Array.isArray(txResult.content) && txResult.content.length > 0 && txResult.content[0].type === 'text') {
+                  parsedTxResult = JSON.parse(txResult.content[0].text);
+                }
+
+                // Check if any log in the transaction has the Zora factory contract address
+                if (parsedTxResult.logs && Array.isArray(parsedTxResult.logs)) {
+                  const hasZoraFactoryLog = parsedTxResult.logs.some(log => 
+                    log.contractAddress === "0x777777751622c0d3258f214F9DF38E35BF45baF3"
+                  );
+                  
+                  if (hasZoraFactoryLog) {
+                    validatedTokens.push(token);
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to validate token:", token.address, error);
+              }
+            }
+          }
+          
+          setSearchResults(validatedTokens);
+        } else {
+          setSearchResults([]);
+        }
       } catch (error) {
         console.error("Search failed:", error);
         setSearchResults([]);
