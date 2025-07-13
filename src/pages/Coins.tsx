@@ -114,6 +114,8 @@ const searchTypes = [
 function CoinsPage() {
   const [searchType, setSearchType] = useState("symbol");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { state, tools, callTool, error, retry } = useMcp({
     url: `https://nodit-mcp.uratmangun.fun/sse`,
@@ -123,9 +125,43 @@ function CoinsPage() {
 
   const isConnected = state === 'ready';
 
-  const handleSearch = () => {
-    console.log(`Searching for ${searchQuery} by ${searchType}`);
-    // Implement your search logic here
+  const truncateHash = (hash: string, prefixLength = 6, suffixLength = 4) => {
+    if (!hash) return '';
+    return `${hash.slice(0, prefixLength)}...${hash.slice(-suffixLength)}`;
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || !isConnected) return;
+
+    if (searchType === "symbol") {
+      setIsLoading(true);
+      try {
+        const result = await callTool("call_nodit_api", {
+          protocol: "base",
+          network: "mainnet",
+          operationId: "searchTokenContractMetadataByKeyword",
+          requestBody: {
+            keyword: searchQuery.trim()
+          }
+        });
+
+        // Parse the response
+        let parsedResult = result;
+        if (result && Array.isArray(result.content) && result.content.length > 0 && result.content[0].type === 'text') {
+          parsedResult = JSON.parse(result.content[0].text);
+        }
+
+        setSearchResults(parsedResult.items || []);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      console.log(`Searching for ${searchQuery} by ${searchType}`);
+      // Implement contract search logic here
+    }
   };
 
   return (
@@ -188,8 +224,8 @@ function CoinsPage() {
               <Search className="h-4 w-4 text-muted-foreground" />
             </div>
           </div>
-          <Button type="button" onClick={handleSearch} disabled={!isConnected}>
-            Search
+          <Button type="button" onClick={handleSearch} disabled={!isConnected || isLoading}>
+            {isLoading ? "Searching..." : "Search"}
           </Button>
         </div>
         {!isConnected && (
@@ -200,16 +236,21 @@ function CoinsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Placeholder for coin cards */}
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className="transition-all hover:shadow-md">
-            <CardHeader>
-              <CardTitle>Coin Name {i + 1}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Coin description and other details go here.</p>
-            </CardContent>
-          </Card>
+        {searchResults.map((token, i) => (
+                      <Card key={token.address || i} className="transition-all hover:shadow-md">
+              <CardHeader>
+                <CardTitle>{token.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Symbol: {token.symbol}</p>
+                <p className="text-sm text-muted-foreground">
+                  Address: <span className="font-mono text-xs">{truncateHash(token.address)}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Tx Hash: <span className="font-mono text-xs">{truncateHash(token.deployedTransactionHash)}</span>
+                </p>
+              </CardContent>
+            </Card>
         ))}
       </div>
     </div>
