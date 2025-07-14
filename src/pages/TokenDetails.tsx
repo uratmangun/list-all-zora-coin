@@ -30,7 +30,7 @@ export default function TokenDetails() {
   // Convert MCP tools to OpenAI SDK tool format
   const getOpenAITools = (): OpenAI.Chat.Completions.ChatCompletionTool[] => {
     if (!tools || tools.length === 0) return [];
-    
+
     return tools.map((mcpTool) => ({
       type: "function",
       function: {
@@ -48,9 +48,9 @@ export default function TokenDetails() {
   // Available MCP functions for tool calling
   const getAvailableFunctions = () => {
     if (!tools || tools.length === 0) return {};
-    
+
     const functions: Record<string, (args: any) => Promise<string>> = {};
-    
+
     tools.forEach((mcpTool) => {
       functions[mcpTool.name] = async (args: any) => {
         try {
@@ -63,7 +63,7 @@ export default function TokenDetails() {
         }
       };
     });
-    
+
     return functions;
   };
 
@@ -86,14 +86,14 @@ export default function TokenDetails() {
   useEffect(() => {
     const fetchCoinData = async () => {
       if (!address) return;
-      
+
       try {
         setLoading(true);
         const response = await getCoin({
           address: address as `0x${string}`,
           chain: base.id,
         });
-        
+
         setCoin(response.data?.zora20Token);
       } catch (err) {
         console.error("Error fetching coin data:", err);
@@ -145,7 +145,7 @@ Token Information:
 
       const openaiTools = getOpenAITools();
       const toolNames = openaiTools.map(t => t.function.name);
-      
+
       // Debug: Check converted tools
       console.log("Available OpenAI Tools:", toolNames);
       console.log("Tools count:", toolNames.length);
@@ -167,14 +167,28 @@ Token Information:
         userMessage
       ];
 
-      // Make the initial request
-      const response = await openai.chat.completions.create({
-        model: "openrouter/cypher-alpha:free",
-        messages: openaiMessages,
+      // Common OpenAI API configuration
+      const openaiConfig = {
+        model: "moonshotai/kimi-k2:free",
         tools: openaiTools,
         temperature: 0.3,
-        tool_choice: "auto",
-      
+        tool_choice: "auto" as const,
+        models: [
+          'google/gemini-2.0-flash-exp:free',
+          'openrouter/cypher-alpha:free',
+          'deepseek/deepseek-chat-v3-0324:free',
+        ],
+        provider: {
+           sort: "throughput",
+          allow_fallbacks: true
+        }
+
+      };
+
+      // Make the initial request
+      const response = await openai.chat.completions.create({
+        ...openaiConfig,
+        messages: openaiMessages,
       });
 
       const responseMessage = response.choices[0].message;
@@ -191,7 +205,7 @@ Token Information:
           const functionName = toolCall.function.name;
           const functionToCall = availableFunctions[functionName];
           const functionArgs = JSON.parse(toolCall.function.arguments);
-          
+
           // Call corresponding MCP function if it exists
           const functionResponse = functionToCall ? await functionToCall(functionArgs) : "Function not available";
           console.log(functionResponse);
@@ -205,12 +219,8 @@ Token Information:
 
         // Make the final request with tool call results
         const finalResponse = await openai.chat.completions.create({
-          model: "openrouter/cypher-alpha:free",
+          ...openaiConfig,
           messages: openaiMessages,
-          tools: openaiTools,
-          temperature: 0.3,
-          tool_choice: "auto",
-         
         });
 
         const finalContent = finalResponse.choices[0].message.content || "No response generated.";
@@ -227,9 +237,9 @@ Token Information:
       console.error('Error generating AI response:', error);
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "I apologize, but I'm having trouble generating a response right now. Please try again later." 
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "I apologize, but I'm having trouble generating a response right now. Please try again later."
       }]);
     } finally {
       setIsGenerating(false);
@@ -260,9 +270,9 @@ Token Information:
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Token Details</h1>
-        
 
-        
+
+
         <div className="grid gap-6">
           {/* Basic Information */}
           <Card>
@@ -275,7 +285,7 @@ Token Information:
                   <h3 className="text-lg font-semibold mb-2">Contract Address</h3>
                   <p className="font-mono text-sm bg-muted p-2 rounded">{address}</p>
                 </div>
-                
+
                 {coin && (
                   <>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -288,12 +298,12 @@ Token Information:
                         <p>{coin.symbol || "N/A"}</p>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h3 className="font-semibold">Description</h3>
                       <p>{coin.description || "No description available"}</p>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-3 gap-4">
                       <div>
                         <h3 className="font-semibold">Total Supply</h3>
@@ -308,7 +318,7 @@ Token Information:
                         <p>{coin.chainId || "N/A"}</p>
                       </div>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <h3 className="font-semibold">Token URI</h3>
@@ -345,7 +355,7 @@ Token Information:
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <h3 className="font-semibold">Total Volume</h3>
@@ -356,7 +366,7 @@ Token Information:
                       <p>{coin.volume24h || "N/A"}</p>
                     </div>
                   </div>
-                  
+
                   {coin.creatorEarnings && coin.creatorEarnings.length > 0 && (
                     <div>
                       <h3 className="font-semibold mb-2">Creator Earnings</h3>
@@ -394,21 +404,21 @@ Token Information:
                       <p className="font-mono text-sm">{coin.payoutRecipientAddress || "N/A"}</p>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h3 className="font-semibold">Platform Referrer</h3>
                     <p className="font-mono text-sm">{coin.platformReferrerAddress || "N/A"}</p>
                   </div>
-                  
+
                   {coin.creatorProfile && (
                     <div>
                       <h3 className="font-semibold mb-2">Creator Profile</h3>
                       <div className="bg-muted p-3 rounded">
                         <div className="flex items-center gap-3">
                           {coin.creatorProfile.avatar?.previewImage?.small && (
-                            <img 
-                              src={coin.creatorProfile.avatar.previewImage.small} 
-                              alt={coin.creatorProfile.handle || "Creator"} 
+                            <img
+                              src={coin.creatorProfile.avatar.previewImage.small}
+                              alt={coin.creatorProfile.handle || "Creator"}
                               className="w-12 h-12 object-cover rounded-full"
                             />
                           )}
@@ -441,7 +451,7 @@ Token Information:
                       <p><strong>Decimals:</strong> {coin.poolCurrencyToken.decimals || "N/A"}</p>
                     </div>
                   </div>
-                  
+
                   {coin.uniswapV4PoolKey && (
                     <div>
                       <h3 className="font-semibold mb-2">Uniswap V4 Pool Key</h3>
@@ -471,12 +481,12 @@ Token Information:
                     <h3 className="font-semibold">MIME Type</h3>
                     <p>{coin.mediaContent.mimeType || "N/A"}</p>
                   </div>
-                  
+
                   <div>
                     <h3 className="font-semibold">Original URI</h3>
                     <p className="font-mono text-sm break-all">{coin.mediaContent.originalUri || "N/A"}</p>
                   </div>
-                  
+
                   {coin.mediaContent.previewImage && (
                     <div>
                       <h3 className="font-semibold mb-2">Preview Images</h3>
@@ -484,9 +494,9 @@ Token Information:
                         {coin.mediaContent.previewImage.small && (
                           <div>
                             <p className="text-sm font-medium mb-1">Small</p>
-                            <img 
-                              src={coin.mediaContent.previewImage.small} 
-                              alt={`${coin.name} - Small`} 
+                            <img
+                              src={coin.mediaContent.previewImage.small}
+                              alt={`${coin.name} - Small`}
                               className="w-32 h-32 object-cover rounded"
                             />
                           </div>
@@ -494,15 +504,15 @@ Token Information:
                         {coin.mediaContent.previewImage.medium && (
                           <div>
                             <p className="text-sm font-medium mb-1">Medium</p>
-                            <img 
-                              src={coin.mediaContent.previewImage.medium} 
-                              alt={`${coin.name} - Medium`} 
+                            <img
+                              src={coin.mediaContent.previewImage.medium}
+                              alt={`${coin.name} - Medium`}
                               className="w-32 h-32 object-cover rounded"
                             />
                           </div>
                         )}
                       </div>
-                      
+
                       {coin.mediaContent.previewImage.blurhash && (
                         <div className="mt-2">
                           <p className="text-sm font-medium">Blurhash</p>
@@ -535,7 +545,7 @@ Token Information:
                   )}
                 </div>
               </div>
-              
+
               {/* API Key Input */}
               <div className="flex items-center gap-2 mt-3">
                 <label htmlFor="api-key" className="text-sm font-medium text-muted-foreground shrink-0">
@@ -569,11 +579,10 @@ Token Information:
                   <div ref={chatContainerRef} className="h-64 overflow-y-auto space-y-3 p-4 border rounded-lg bg-muted/30">
                     {messages.map((message, index) => (
                       <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-3 rounded-lg ${
-                          message.role === 'user' 
-                            ? 'bg-primary text-primary-foreground' 
+                        <div className={`max-w-[70%] p-3 rounded-lg ${message.role === 'user'
+                            ? 'bg-primary text-primary-foreground'
                             : 'bg-background border'
-                        }`}>
+                          }`}>
                           {message.role === 'assistant' ? (
                             <div className="text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
                               <ReactMarkdown>{message.content}</ReactMarkdown>
